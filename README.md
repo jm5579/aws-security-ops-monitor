@@ -223,7 +223,7 @@ This tool doesn't claim to make an institution B-13 compliant by itself — B-13
 ### Option A — Mock data (no AWS account required)
 
 ```bash
-git clone https://github.com/<your-username>/aws-security-ops-monitor.git
+git clone https://github.com/jm5579/aws-security-ops-monitor.git
 cd aws-security-ops-monitor
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
