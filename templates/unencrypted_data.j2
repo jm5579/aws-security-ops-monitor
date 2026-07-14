@@ -1,0 +1,79 @@
+# Incident Response Runbook: Unencrypted Data at Rest
+
+**Runbook generated:** {{ generated_at }}
+**Finding ID:** {{ finding.finding_id }}
+**Severity:** {{ finding.severity }}
+**Status:** {{ finding.status }}
+
+## 1. Finding Summary
+
+- **Title:** {{ finding.title }}
+- **Description:** {{ finding.description }}
+- **Affected resource:** `{{ finding.resource_id }}` ({{ finding.resource_type }})
+- **AWS account:** {{ finding.account_id }} | **Region:** {{ finding.region }}
+- **Detected:** {{ finding.detected_at }} ({{ finding.days_open }} days open)
+- **Source:** {{ finding.source }}
+
+## 2. Immediate Containment Steps
+
+1. This finding is a standing configuration risk, not an active exploit —
+   there is nothing to "stop" immediately, but access controls on the
+   resource should be reviewed to confirm they are still tight while
+   remediation is scheduled:
+   ```
+   aws ec2 describe-volumes --volume-ids <VOLUME_ID>
+   ```
+2. Confirm no snapshots of this resource have been shared publicly or with
+   unauthorized accounts.
+
+## 3. Root Cause Investigation Steps
+
+1. Determine whether encryption-at-rest is an account-level default that
+   was never enabled, or whether this specific resource was created
+   outside of the standard provisioning path.
+2. Check whether this resource was created via Infrastructure-as-Code — if
+   so, identify the module/template responsible and check for sibling
+   resources with the same gap.
+3. Confirm what data classification applies to this resource (per data
+   governance policy) to prioritize remediation urgency.
+
+## 4. Remediation Procedure
+
+1. **EBS volumes:** enable "Encryption by default" at the account/region
+   level going forward, and create an encrypted copy of the existing
+   volume via snapshot-and-recreate (EBS encryption cannot be toggled
+   on an existing volume in place):
+   ```
+   aws ec2 create-snapshot --volume-id <VOLUME_ID>
+   aws ec2 copy-snapshot --source-snapshot-id <SNAP_ID> --encrypted
+   ```
+2. **RDS/S3/other:** enable the service-native encryption-at-rest setting
+   (KMS-backed) and, where the service doesn't support in-place encryption,
+   plan a maintenance window to migrate to an encrypted replacement resource.
+3. Update the account's Infrastructure-as-Code baseline/module defaults so
+   new resources are encrypted by default going forward.
+4. Coordinate the cutover with the resource owner to avoid unplanned downtime.
+
+## 5. Verification Steps
+
+- [ ] Confirm the resource (or its replacement) shows `Encrypted: true`.
+- [ ] Confirm dependent applications function correctly against the
+      encrypted resource.
+- [ ] Confirm the old unencrypted resource/snapshot has been securely deleted.
+- [ ] Confirm account-level encryption defaults are enabled to prevent recurrence.
+- [ ] Update the vulnerability register status to `resolved` with resolution notes.
+
+## 6. Lessons Learned Template
+
+*To be completed by the responding analyst after remediation.*
+
+- **What happened:**
+- **Why it happened (root cause):**
+- **What worked well in the response:**
+- **What could be improved:**
+- **Preventive action items (with owners and due dates):**
+
+---
+*Generated automatically by AWS Security Operations Monitor. This runbook
+should be reviewed and adapted by a qualified analyst — it is a
+starting point, not a substitute for judgment.*

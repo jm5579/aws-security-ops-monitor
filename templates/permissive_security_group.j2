@@ -1,0 +1,76 @@
+# Incident Response Runbook: Overly Permissive Security Group
+
+**Runbook generated:** {{ generated_at }}
+**Finding ID:** {{ finding.finding_id }}
+**Severity:** {{ finding.severity }}
+**Status:** {{ finding.status }}
+
+## 1. Finding Summary
+
+- **Title:** {{ finding.title }}
+- **Description:** {{ finding.description }}
+- **Affected resource:** `{{ finding.resource_id }}` ({{ finding.resource_type }})
+- **AWS account:** {{ finding.account_id }} | **Region:** {{ finding.region }}
+- **Detected:** {{ finding.detected_at }} ({{ finding.days_open }} days open)
+- **Source:** {{ finding.source }}
+
+## 2. Immediate Containment Steps
+
+1. Identify all resources currently using this security group before making
+   changes, to understand blast radius of a rule change:
+   ```
+   aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID>
+   ```
+2. If the open port is a known-sensitive management port (22, 3389, 3306,
+   5432, etc.), revoke the overly broad ingress rule immediately:
+   ```
+   aws ec2 revoke-security-group-ingress --group-id <SG_ID> \
+     --protocol tcp --port <PORT> --cidr 0.0.0.0/0
+   ```
+3. Check VPC Flow Logs / GuardDuty for evidence of connections from
+   unexpected source IPs on the exposed port during the exposure window.
+
+## 3. Root Cause Investigation Steps
+
+1. Determine when the permissive rule was added and by whom via CloudTrail
+   (`AuthorizeSecurityGroupIngress` events).
+2. Assess whether the rule was intentional (e.g. a temporary debugging rule
+   never removed) or a copy-paste/template error.
+3. Check whether other security groups in the account share the same
+   overly broad pattern.
+4. Confirm whether the affected instances are internet-facing or internal
+   only, to fully understand real-world exposure.
+
+## 4. Remediation Procedure
+
+1. Replace the rule with a scoped CIDR range or, preferably, a reference to
+   a specific source security group rather than an IP range.
+2. Where remote administrative access is genuinely required, route it
+   through a bastion host, Session Manager, or VPN rather than opening
+   the port directly to the internet.
+3. Add or update AWS Config rules / Security Hub controls to detect this
+   pattern automatically going forward.
+4. If found in Infrastructure-as-Code, fix and re-review the source module.
+
+## 5. Verification Steps
+
+- [ ] Confirm `describe-security-groups` no longer shows the 0.0.0.0/0 rule
+      for the sensitive port.
+- [ ] Confirm legitimate traffic (e.g. from the bastion/VPN CIDR) still functions correctly.
+- [ ] Confirm no other security groups share the same misconfiguration.
+- [ ] Update the vulnerability register status to `resolved` with resolution notes.
+
+## 6. Lessons Learned Template
+
+*To be completed by the responding analyst after remediation.*
+
+- **What happened:**
+- **Why it happened (root cause):**
+- **What worked well in the response:**
+- **What could be improved:**
+- **Preventive action items (with owners and due dates):**
+
+---
+*Generated automatically by AWS Security Operations Monitor. This runbook
+should be reviewed and adapted by a qualified analyst — it is a
+starting point, not a substitute for judgment.*

@@ -1,0 +1,75 @@
+# Incident Response Runbook: IAM Identity with Excessive Permissions
+
+**Runbook generated:** {{ generated_at }}
+**Finding ID:** {{ finding.finding_id }}
+**Severity:** {{ finding.severity }}
+**Status:** {{ finding.status }}
+
+## 1. Finding Summary
+
+- **Title:** {{ finding.title }}
+- **Description:** {{ finding.description }}
+- **Affected resource:** `{{ finding.resource_id }}` ({{ finding.resource_type }})
+- **AWS account:** {{ finding.account_id }} | **Region:** {{ finding.region }}
+- **Detected:** {{ finding.detected_at }} ({{ finding.days_open }} days open)
+- **Source:** {{ finding.source }}
+
+## 2. Immediate Containment Steps
+
+1. This is typically a configuration risk rather than an active compromise —
+   confirm there is no evidence of anomalous activity before treating it as
+   an incident vs. a standing risk item:
+   ```
+   aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=<IDENTITY_NAME>
+   ```
+2. If anomalous activity **is** found, treat as a confirmed compromise:
+   attach an explicit deny policy or detach the role/user's permissions
+   immediately, and escalate to the incident commander.
+3. If no anomalous activity is found, proceed as a standard remediation
+   (not an active incident) — document in the register and schedule
+   remediation with the resource owner.
+
+## 3. Root Cause Investigation Steps
+
+1. Use IAM Access Analyzer's policy generator or CloudTrail-based access
+   history to determine which permissions the identity has actually used
+   over the last 90 days.
+2. Compare actual usage against the granted policy to quantify the excess.
+3. Determine who created/attached the overly broad policy and why (common
+   causes: rapid prototyping permissions never scoped down, a managed
+   policy like `AdministratorAccess` attached "temporarily").
+
+## 4. Remediation Procedure
+
+1. Generate a least-privilege policy based on actual usage (IAM Access
+   Analyzer "generate policy based on CloudTrail" feature is a good start,
+   but should be reviewed by a human, not applied blind).
+2. Replace the broad managed policy with the scoped custom policy.
+3. Apply permissions boundaries for roles/users that require some
+   flexibility but should never be able to reach specific high-risk actions
+   (e.g. IAM policy modification, billing changes).
+4. Add a periodic access review to the team's recurring compliance tasks so
+   permission creep doesn't silently reoccur.
+
+## 5. Verification Steps
+
+- [ ] Confirm the identity's effective permissions now match the scoped policy.
+- [ ] Confirm dependent workloads still function correctly after the change
+      (test in a lower environment first if available).
+- [ ] Confirm no other identities share the same overly broad policy.
+- [ ] Update the vulnerability register status to `resolved` with resolution notes.
+
+## 6. Lessons Learned Template
+
+*To be completed by the responding analyst after remediation.*
+
+- **What happened:**
+- **Why it happened (root cause):**
+- **What worked well in the response:**
+- **What could be improved:**
+- **Preventive action items (with owners and due dates):**
+
+---
+*Generated automatically by AWS Security Operations Monitor. This runbook
+should be reviewed and adapted by a qualified analyst — it is a
+starting point, not a substitute for judgment.*

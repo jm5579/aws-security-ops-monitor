@@ -1,0 +1,78 @@
+# Incident Response Runbook: Publicly Accessible S3 Bucket
+
+**Runbook generated:** {{ generated_at }}
+**Finding ID:** {{ finding.finding_id }}
+**Severity:** {{ finding.severity }}
+**Status:** {{ finding.status }}
+
+## 1. Finding Summary
+
+- **Title:** {{ finding.title }}
+- **Description:** {{ finding.description }}
+- **Affected resource:** `{{ finding.resource_id }}` ({{ finding.resource_type }})
+- **AWS account:** {{ finding.account_id }} | **Region:** {{ finding.region }}
+- **Detected:** {{ finding.detected_at }} ({{ finding.days_open }} days open)
+- **Source:** {{ finding.source }}
+
+## 2. Immediate Containment Steps
+
+1. **Enable S3 Block Public Access** on the bucket immediately as a first
+   line of containment:
+   ```
+   aws s3api put-public-access-block --bucket <BUCKET_NAME> \
+     --public-access-block-configuration \
+     BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+   ```
+2. Review the bucket's access logs (or CloudTrail data events, if enabled)
+   for any GET/LIST requests from unrecognized IP addresses or user agents
+   during the exposure window.
+3. Notify the data/application owner so they can confirm whether any
+   sensitive data (PII, financial records, credentials) was present in the bucket.
+
+## 3. Root Cause Investigation Steps
+
+1. Determine what made the bucket public: an overly permissive bucket
+   policy, a public ACL grant, or an account-level Block Public Access
+   setting that was disabled.
+2. Identify who/what changed the configuration and when, via CloudTrail
+   (`PutBucketPolicy`, `PutBucketAcl`, `PutPublicAccessBlock` events).
+3. Inventory the objects in the bucket to assess data sensitivity and
+   determine breach notification obligations if applicable.
+4. Check whether this bucket was provisioned via Infrastructure-as-Code —
+   if so, the root cause is likely a template/module defect that affects
+   other buckets too.
+
+## 4. Remediation Procedure
+
+1. Replace the bucket policy with a least-privilege policy scoped to only
+   the specific principals that require access.
+2. Remove any public ACL grants on the bucket and its objects.
+3. Enable S3 Block Public Access at the **account level** if there is no
+   legitimate business need for any public bucket in this account.
+4. Enable versioning and server access logging on the bucket if not already
+   enabled, to support future forensic investigation.
+5. If Infrastructure-as-Code was the root cause, fix and re-review the
+   shared module, and audit sibling resources provisioned from it.
+
+## 5. Verification Steps
+
+- [ ] Confirm `aws s3api get-public-access-block` shows all four settings as `true`.
+- [ ] Confirm anonymous `GetObject`/`ListBucket` requests are denied.
+- [ ] Confirm no other buckets in the account share the same misconfiguration.
+- [ ] Confirm the data owner has completed sensitivity assessment / breach evaluation.
+- [ ] Update the vulnerability register status to `resolved` with resolution notes.
+
+## 6. Lessons Learned Template
+
+*To be completed by the responding analyst after remediation.*
+
+- **What happened:**
+- **Why it happened (root cause):**
+- **What worked well in the response:**
+- **What could be improved:**
+- **Preventive action items (with owners and due dates):**
+
+---
+*Generated automatically by AWS Security Operations Monitor. This runbook
+should be reviewed and adapted by a qualified analyst — it is a
+starting point, not a substitute for judgment.*

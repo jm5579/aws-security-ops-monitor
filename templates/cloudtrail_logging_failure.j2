@@ -1,0 +1,82 @@
+# Incident Response Runbook: CloudTrail Logging Failure
+
+**Runbook generated:** {{ generated_at }}
+**Finding ID:** {{ finding.finding_id }}
+**Severity:** {{ finding.severity }}
+**Status:** {{ finding.status }}
+
+## 1. Finding Summary
+
+- **Title:** {{ finding.title }}
+- **Description:** {{ finding.description }}
+- **Affected resource:** `{{ finding.resource_id }}` ({{ finding.resource_type }})
+- **AWS account:** {{ finding.account_id }} | **Region:** {{ finding.region }}
+- **Detected:** {{ finding.detected_at }} ({{ finding.days_open }} days open)
+- **Source:** {{ finding.source }}
+
+## 2. Immediate Containment Steps
+
+1. This finding represents an **audit visibility gap**, which is itself a
+   priority to close quickly since it can mask other malicious activity.
+   Check trail status immediately:
+   ```
+   aws cloudtrail get-trail-status --name <TRAIL_NAME>
+   ```
+2. If logging is disabled, re-enable it immediately:
+   ```
+   aws cloudtrail start-logging --name <TRAIL_NAME>
+   ```
+3. Treat the gap period as a blind spot — cross-reference other available
+   telemetry (GuardDuty findings, VPC Flow Logs, service-specific logs)
+   for that window to look for signs of activity that CloudTrail would
+   normally have captured.
+
+## 3. Root Cause Investigation Steps
+
+1. Determine why logging stopped: was `StopLogging` called deliberately
+   (by whom, and was it authorized), did the destination S3 bucket policy
+   change and reject delivery, or was the trail itself deleted/modified?
+2. Check CloudTrail's own management events (if a multi-region
+   organization trail exists) for `StopLogging`, `DeleteTrail`, or
+   `UpdateTrail` API calls against this trail.
+3. Confirm whether this was an isolated trail or part of the
+   organization-wide logging baseline, to assess whether other accounts
+   are similarly affected.
+
+## 4. Remediation Procedure
+
+1. Restore logging and confirm the destination S3 bucket policy correctly
+   grants CloudTrail delivery permissions.
+2. Enable log file validation and, if not already in place, deliver trail
+   logs to a dedicated, access-restricted logging account (a security best
+   practice that also limits the blast radius of this exact scenario).
+3. Add a CloudWatch alarm / EventBridge rule on `StopLogging` and
+   `DeleteTrail` API calls so this condition is caught immediately in the
+   future rather than via periodic scanning.
+4. If the trail was disabled by a compromised or over-privileged identity,
+   follow up via the excessive-permissions or exposed-credentials runbook
+   as appropriate for that identity.
+
+## 5. Verification Steps
+
+- [ ] Confirm `get-trail-status` shows `IsLogging: true`.
+- [ ] Confirm new log files are being delivered to the destination S3 bucket.
+- [ ] Confirm an alarm now exists on `StopLogging`/`DeleteTrail` events.
+- [ ] Confirm the gap-period investigation (step 2 above) was completed and
+      documented, even though logging itself is now restored.
+- [ ] Update the vulnerability register status to `resolved` with resolution notes.
+
+## 6. Lessons Learned Template
+
+*To be completed by the responding analyst after remediation.*
+
+- **What happened:**
+- **Why it happened (root cause):**
+- **What worked well in the response:**
+- **What could be improved:**
+- **Preventive action items (with owners and due dates):**
+
+---
+*Generated automatically by AWS Security Operations Monitor. This runbook
+should be reviewed and adapted by a qualified analyst — it is a
+starting point, not a substitute for judgment.*

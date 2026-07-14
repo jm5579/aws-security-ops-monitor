@@ -1,0 +1,93 @@
+name: Daily Security Scan
+
+# Runs every day at 08:00 UTC, plus supports manual dispatch for demoing
+# the pipeline on-demand (e.g. during a technical interview walkthrough).
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC role assumption against real AWS
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      # Defaults to mock mode so the workflow runs green on any fork
+      # without requiring AWS credentials to be configured. Flip to
+      # 'false' once repository secrets for a real Security Hub account
+      # are configured (see README "Connecting to a real AWS Security
+      # Hub environment").
+      USE_MOCK_DATA: "true"
+      AWS_REGION: "ca-central-1"
+      MIN_SEVERITY: "LOW"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Uncomment when connecting to a real AWS account via OIDC (no
+      # long-lived static credentials required):
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/github-actions-secops-readonly
+      #     aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run unit tests
+        run: pytest tests/ -v
+
+      - name: Fetch latest findings
+        run: python -m src.cli fetch-findings --min-severity "$MIN_SEVERITY"
+
+      - name: Update vulnerability register
+        run: python -m src.cli update-register
+
+      - name: Generate security report
+        run: python -m src.cli generate-report
+
+      - name: Upload report as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-${{ github.run_number }}
+          path: reports/*.md
+          retention-days: 90
+
+      - name: Upload vulnerability register snapshot as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-register-${{ github.run_number }}
+          path: data/vulnerability_register.db
+          retention-days: 90
+
+      - name: Summarize new critical findings
+        run: |
+          python -c "
+          from config import SETTINGS
+          from src.db import VulnerabilityRegister
+          reg = VulnerabilityRegister(SETTINGS.db_path)
+          reg.initialize()
+          critical = reg.list_findings(status='open', severity='CRITICAL')
+          summary_path = '$GITHUB_STEP_SUMMARY'
+          with open(summary_path, 'a') as f:
+              f.write('## Daily Security Scan Summary\n\n')
+              if critical:
+                  f.write(f'**{len(critical)} open CRITICAL finding(s) require attention:**\n\n')
+                  f.write('| Finding | Resource | Days Open |\n|---|---|---|\n')
+                  for c in critical:
+                      f.write(f\"| {c['title']} | {c['resource_id']} | - |\n\")
+              else:
+                  f.write('No open CRITICAL findings. \u2705\n')
+          "
