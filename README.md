@@ -209,7 +209,7 @@ Every finding also carries an **OSFI B-13** domain mapping (see `src/models.py::
 
 **OSFI (the Office of the Superintendent of Financial Institutions)** is the federal regulator overseeing Canada's banks, insurers, and federally regulated trust and loan companies. **Guideline B-13 (Technology and Cyber Risk Management)**, in force since 2024, sets out OSFI's expectations for how these institutions govern technology risk — spanning technology risk governance, resilience, cyber security, third-party/cloud provider risk, data risk, and incident management.
 
-Peoples Group, as a federally regulated Canadian financial institution, falls squarely under B-13. A few B-13 expectations this tool is built to directly evidence:
+A federally regulated Canadian financial institution, falls squarely under B-13. A few B-13 expectations this tool is built to directly evidence:
 
 - **Continuous monitoring and timely identification of vulnerabilities** — `fetch-findings` running daily via GitHub Actions, feeding a persistent register.
 - **A structured process for tracking and remediating identified risks** — the vulnerability register itself, with status, ownership, and audit-logged state transitions.
